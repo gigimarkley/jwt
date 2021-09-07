@@ -2,6 +2,8 @@ const Sequelize = require("sequelize");
 const { STRING } = Sequelize;
 const jwt = require("jsonwebtoken");
 const SECRET_KEY = process.env.JWT; //this is the JWT we defined in package.JSON
+const bcrypt = require("bcrypt")
+const saltRounds = 10;
 
 const config = {
   logging: false,
@@ -45,10 +47,12 @@ User.authenticate = async ({ username, password }) => {
   const user = await User.findOne({
     where: {
       username,
-      password,
+      // password,
     },
   });
-  if (user) {
+  const verified = bcrypt.compare(password, user.password)
+
+  if (verified) {
     const token = jwt.sign(
       {
         userId: user.id,
@@ -62,6 +66,18 @@ User.authenticate = async ({ username, password }) => {
   error.status = 401;
   throw error;
 };
+
+// User.beforeCreate(user => {
+//   return bcrypt.hash(user.password, saltRounds)
+//   .then(hash => user.password = hash)
+//   .catch(error => console.log(error))
+// })
+
+User.beforeCreate(async (user, options) => {
+  const hashedPassword = await bcrypt.hash(user.password, saltRounds);
+  user.password = hashedPassword;
+});
+
 
 const syncAndSeed = async () => {
   await conn.sync({ force: true });
