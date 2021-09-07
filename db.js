@@ -2,7 +2,7 @@ const Sequelize = require("sequelize");
 const { STRING } = Sequelize;
 const jwt = require("jsonwebtoken");
 const SECRET_KEY = process.env.JWT; //this is the JWT we defined in package.JSON
-const bcrypt = require("bcrypt")
+const bcrypt = require("bcrypt");
 const saltRounds = 10;
 
 const config = {
@@ -21,6 +21,13 @@ const User = conn.define("user", {
   username: STRING,
   password: STRING,
 });
+
+const Note = conn.define("note", {
+  text: STRING,
+});
+
+Note.belongsTo(User);
+User.hasMany(Note);
 
 User.byToken = async (token) => {
   try {
@@ -50,7 +57,7 @@ User.authenticate = async ({ username, password }) => {
       // password,
     },
   });
-  const verified = bcrypt.compare(password, user.password)
+  const verified = bcrypt.compare(password, user.password);
 
   if (verified) {
     const token = jwt.sign(
@@ -78,7 +85,6 @@ User.beforeCreate(async (user, options) => {
   user.password = hashedPassword;
 });
 
-
 const syncAndSeed = async () => {
   await conn.sync({ force: true });
   const credentials = [
@@ -86,9 +92,19 @@ const syncAndSeed = async () => {
     { username: "moe", password: "moe_pw" },
     { username: "larry", password: "larry_pw" },
   ];
+  const notes = [
+    { text: "HeeHee" },
+    { text: "BANANA" },
+    { text: "HELLO WORLD" },
+  ];
   const [lucy, moe, larry] = await Promise.all(
     credentials.map((credential) => User.create(credential))
   );
+  const [note1, note2, note3] = await Promise.all(
+    notes.map((note) => Note.create(note))
+  );
+  await lucy.setNotes(note1);
+  await moe.setNotes([note2, note3]);
   return {
     users: {
       lucy,
@@ -102,5 +118,6 @@ module.exports = {
   syncAndSeed,
   models: {
     User,
+    Note,
   },
 };
